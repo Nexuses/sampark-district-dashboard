@@ -10,11 +10,12 @@ type Props = {
   items: DWLeadingIndicator[]
   criteria: DWDistrictWiseResponse["data"]["leadingIndicatorsGreenCriteria"]
   titleSuffix?: string
+  onRowClick?: (item: { id?: string; name: string }) => void
 }
 
 // Rendering is neutral; we do not color by thresholds for API-driven values.
 
-export function LeadingIndicatorsTable({ items, criteria, titleSuffix }: Props) {
+export function LeadingIndicatorsTable({ items, criteria, titleSuffix, onRowClick }: Props) {
   const [search, setSearch] = useState("")
   const [performanceFilter, setPerformanceFilter] = useState("all")
   
@@ -26,6 +27,7 @@ export function LeadingIndicatorsTable({ items, criteria, titleSuffix }: Props) 
         return String(v)
       }
       return {
+        id: (it as any)?.id as string | undefined,
         district: it.name || "",
         teacherAcceptance: valueOrEmpty(it.teacherFeedback?.rating),
         lessonsTaught: valueOrEmpty(it.usage_per_school),
@@ -42,7 +44,7 @@ export function LeadingIndicatorsTable({ items, criteria, titleSuffix }: Props) 
   const filteredData = useMemo(() => {
     return mapped.filter((row) => {
       const matchesSearch = row.district.toLowerCase().includes(search.toLowerCase())
-      const numericDaily = typeof row.dailyUsage === "number" ? row.dailyUsage : Number(row.dailyUsage)
+      const numericDaily = Number(row.dailyUsage)
       const hasNumber = Number.isFinite(numericDaily)
       if (performanceFilter === "high") {
         return matchesSearch && hasNumber && numericDaily >= criteria.usage_in_minutes_per_day
@@ -112,82 +114,95 @@ export function LeadingIndicatorsTable({ items, criteria, titleSuffix }: Props) 
                 {filteredData.map((row, idx) => (
                   <tr
                     key={idx}
-                    className={`hover:bg-muted/50 transition-colors ${
-                      row.district === "Block Averages" ? "bg-primary/5 font-medium" : ""
+                    className={`hover:bg-primary/10 group transition-colors ${
+                      onRowClick && row.district !== "State Average/Total" && row.district !== "District Average/Total" ? "cursor-pointer" : ""
+                    } ${
+                      row.district === "Block Averages" || row.district === "State Average/Total" || row.district === "District Average/Total"
+                        ? "bg-primary/5 font-medium"
+                        : ""
                     }`}
+                    onClick={() => {
+                      if (onRowClick && row.district !== "State Average/Total" && row.district !== "District Average/Total") onRowClick({ id: (row as any).id, name: row.district })
+                    }}
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-card z-10 whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-transparent transition-colors z-10 whitespace-nowrap">
                       {row.district}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${
-                          row.district === "State Average/Total"
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : typeof row.teacherAcceptance === "number"
-                            ? row.teacherAcceptance >= criteria.teacherFeedback
-                              ? "bg-success/20 text-black border border-success/30"
-                              : "bg-error/20 text-black border border-error/30"
-                            : "bg-muted/20 text-foreground border border-border"
-                        }`}
-                      >
-                        {row.teacherAcceptance}
-                      </span>
+                      {(() => {
+                        const v = row.teacherAcceptance
+                        const n = Number(v)
+                        const isNum = Number.isFinite(n)
+                        const cls = row.district === "State Average/Total"
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : isNum
+                          ? (n >= criteria.teacherFeedback ? "bg-success/20 text-black border border-success/30" : "bg-warning/20 text-black border border-warning/30")
+                          : "bg-muted/20 text-foreground border border-border"
+                        return (
+                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${cls}`}>
+                            {v === "" ? "NA" : v}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${
-                          row.district === "State Average/Total"
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : typeof row.lessonsTaught === "number"
-                            ? row.lessonsTaught >= criteria.usage_per_school
-                              ? "bg-success/20 text-black border border-success/30"
-                              : "bg-error/20 text-black border border-error/30"
-                            : "bg-muted/20 text-foreground border border-border"
-                        }`}
-                      >
-                        {row.lessonsTaught}
-                      </span>
+                      {(() => {
+                        const v = row.lessonsTaught
+                        const n = Number(v)
+                        const isNum = Number.isFinite(n)
+                        const cls = row.district === "State Average/Total"
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : isNum
+                          ? (n >= criteria.usage_per_school ? "bg-success/20 text-black border border-success/30" : "bg-warning/20 text-black border border-warning/30")
+                          : "bg-muted/20 text-foreground border border-border"
+                        return (
+                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${cls}`}>
+                            {v === "" ? "NA" : v}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${
-                          row.district === "State Average/Total"
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : typeof row.activeSchools === "number"
-                            ? row.activeSchools >= criteria.stvUtilization
-                              ? "bg-success/20 text-black border border-success/30"
-                              : "bg-error/20 text-black border border-error/30"
-                            : "bg-muted/20 text-foreground border border-border"
-                        }`}
-                      >
-                        {row.activeSchools}
-                      </span>
+                      {(() => {
+                        const v = row.activeSchools
+                        const n = Number(v)
+                        const isNum = Number.isFinite(n)
+                        const cls = row.district === "State Average/Total"
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : isNum
+                          ? (n >= criteria.stvUtilization ? "bg-success/20 text-black border border-success/30" : "bg-warning/20 text-black border border-warning/30")
+                          : "bg-muted/20 text-foreground border border-border"
+                        return (
+                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${cls}`}>
+                            {v === "" ? "NA" : v}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${
-                          row.district === "State Average/Total"
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : typeof row.dailyUsage === "number"
-                            ? row.dailyUsage >= criteria.usage_in_minutes_per_day
-                              ? "bg-success/20 text-black border border-success/30"
-                              : "bg-error/20 text-black border border-error/30"
-                            : "bg-muted/20 text-foreground border border-border"
-                        }`}
-                      >
-                        {row.dailyUsage}
-                      </span>
+                      {(() => {
+                        const v = row.dailyUsage
+                        const n = Number(v)
+                        const isNum = Number.isFinite(n)
+                        const cls = row.district === "State Average/Total"
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : isNum
+                          ? (n >= criteria.usage_in_minutes_per_day ? "bg-success/20 text-black border border-success/30" : "bg-warning/20 text-black border border-warning/30")
+                          : "bg-muted/20 text-foreground border border-border"
+                        return (
+                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${cls}`}>
+                            {v === "" ? "NA" : v}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span className="inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium bg-muted/20 text-foreground border border-border">
-                        {typeof row.teachersTrained === "number" ? row.teachersTrained.toLocaleString() : row.teachersTrained}
+                        {row.teachersTrained === "" ? "NA" : (typeof row.teachersTrained === "number" ? row.teachersTrained.toLocaleString() : row.teachersTrained)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium bg-muted/20 text-foreground border border-border">
-                        {row.smartSchools}
-                      </span>
+                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium bg-muted/20 text-foreground border border-border">{row.smartSchools === "" ? "NA" : row.smartSchools}</span>
                     </td>
                   </tr>
                 ))}
