@@ -1,5 +1,5 @@
 import { getToken } from "./auth"
-import type { DataInsightsRequest, DataInsightsResponse, DWDistrictWiseResponse } from "./types"
+import type { DataInsightsRequest, DataInsightsResponse, DWDistrictWiseResponse, DWDistrictLevelResponse } from "./types"
 
 function toFormUrlEncoded(body: Record<string, string>) {
   const params = new URLSearchParams()
@@ -48,6 +48,28 @@ export async function fetchDistrictWiseLeadingIndicators(apiBase: string, params
     throw new Error(text || "Unexpected response type")
   }
   const json = (await res.json()) as DWDistrictWiseResponse
+  return json
+}
+
+export async function fetchDistrictLevelLeadingIndicators(apiBase: string, params: {
+  state_id: string
+  district_id: string
+  session: string
+}): Promise<DWDistrictLevelResponse> {
+  const token = getToken()
+  const qs = new URLSearchParams(params as Record<string, string>).toString()
+  const res = await fetch(`${apiBase}/server/api/v2/districtWiseLeadingIndicators?${qs}`, {
+    method: "GET",
+    headers: {
+      "Authorization": token ? `Bearer ${token}` : "",
+    },
+  })
+  const contentType = res.headers.get("content-type") || ""
+  if (!contentType.includes("application/json")) {
+    const text = await res.text()
+    throw new Error(text || "Unexpected response type")
+  }
+  const json = (await res.json()) as DWDistrictLevelResponse
   return json
 }
 

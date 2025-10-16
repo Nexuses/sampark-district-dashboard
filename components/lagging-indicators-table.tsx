@@ -151,11 +151,11 @@ export function LaggingIndicatorsTable({ items, subjects }: Props) {
                 {filteredData.map((row, idx) => (
                   <tr
                     key={idx}
-                    className={`hover:bg-muted/50 transition-colors ${
+                    className={`hover:bg-primary/10 group transition-colors ${
                       row.district === "State Average/Total" ? "bg-primary/5 font-medium" : ""
                     }`}
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-card z-10 whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-transparent transition-colors z-10 whitespace-nowrap">
                       {row.district}
                     </td>
                     <td className={`px-4 py-3 text-center ${subjectFilter === "language" ? "hidden" : ""}`}>

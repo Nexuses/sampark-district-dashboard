@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import type { DWDistrictWiseResponse } from "@/lib/types"
 type Props = {
   items: DWDistrictWiseResponse["data"]["leadingIndicators"]
+  onRowClick?: (item: { id?: string; name: string }) => void
 }
 
 function getPerformanceColor(value: number, stateAverage: number): string {
@@ -19,16 +20,17 @@ function getPerformanceColor(value: number, stateAverage: number): string {
   return "bg-warning/20 text-black border border-warning/30"
 }
 
-export function ClassObservationTable({ items }: Props) {
+export function ClassObservationTable({ items, onRowClick }: Props) {
   const [search, setSearch] = useState("")
   const [performanceFilter, setPerformanceFilter] = useState("all")
 
   const mapped = useMemo(() => {
-    return (items || []).map((it) => {
+    return (items || []).map((it: any) => {
       const ca = it.continuousAssessment || ({} as any)
       const childrenAssessed = typeof ca.childrenAssessed === "number" ? ca.childrenAssessed : Number(ca.childrenAssessed || 0)
       const grade = typeof ca.childrenAboveAverage === "number" ? ca.childrenAboveAverage : parseFloat((ca.childrenAboveAverage || "").toString())
       return {
+        id: it?.id as string | undefined,
         district: it.name || "",
         childrenAssessed: Number.isFinite(childrenAssessed) ? childrenAssessed : 0,
         gradeAppropriate: Number.isFinite(grade) ? grade : 0,
@@ -112,15 +114,18 @@ export function ClassObservationTable({ items }: Props) {
                 {filteredData.map((row, idx) => (
                   <tr
                     key={idx}
-                    className={`hover:bg-muted/50 transition-colors ${
-                      row.district === "State Average/Total" ? "bg-primary/5 font-medium" : ""
-                    }`}
+                    className={`hover:bg-primary/10 group transition-colors ${
+                      row.district === "State Average/Total" || row.district === "District Average/Total" ? "bg-primary/5 font-medium" : ""
+                    } ${onRowClick && row.district !== "State Average/Total" && row.district !== "District Average/Total" ? "cursor-pointer" : ""}`}
+                    onClick={() => {
+                      if (onRowClick && row.district !== "State Average/Total" && row.district !== "District Average/Total") onRowClick({ id: (row as any).id, name: row.district })
+                    }}
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-card z-10 whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-transparent transition-colors z-10 whitespace-nowrap">
                       {row.district}
                     </td>
                     <td className="px-4 py-3 text-center text-sm text-foreground">
-                      {row.childrenAssessed.toLocaleString()}
+                      {Number.isFinite(row.childrenAssessed) ? row.childrenAssessed.toLocaleString() : "NA"}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
@@ -132,7 +137,7 @@ export function ClassObservationTable({ items }: Props) {
                             : "bg-error/20 text-black border border-error/30"
                         }`}
                       >
-                        {row.gradeAppropriate.toFixed(1)}%
+                        {Number.isFinite(row.gradeAppropriate) ? `${row.gradeAppropriate.toFixed(1)}%` : "NA"}
                       </span>
                     </td>
                   </tr>

@@ -116,4 +116,66 @@ export type DWDistrictWiseResponse = {
   message: string
 }
 
+// District-level response types
+export type DWDistrictTeacherFeedback = {
+  rating: number | string
+  overall_feedback: number
+}
+
+export type DWDistrictContinuousAssessment = {
+  childrenAssessed: number | string
+  childrenAboveAverage: string
+}
+
+export type DWDistrictLeadingIndicator = {
+  id: string
+  name: string
+  smartSchools: string
+  usage_per_school: string
+  stvUtilization: string
+  usage_in_minutes_per_day: string
+  trainedTeachers: string
+  trainedTeachersPerSchool: number
+  teacherFeedback: DWDistrictTeacherFeedback
+  continuousAssessment: DWDistrictContinuousAssessment
+  usage_per_school_class_1_5?: string
+  usage_per_school_class_6_8?: string
+}
+
+export type DWDistrictData = {
+  is_active: boolean
+  isSTV: boolean
+  start_year: number
+  _id: string
+  name: string
+  code: string
+  state_id: string
+  createdDate: string
+  updatedDate: string
+  __v: number
+  sf_district_id: number
+  id: string
+}
+
+export type DWDistrictLevelResponse = {
+  statusCode: number
+  error: string | null
+  data: {
+    districtData: DWDistrictData
+    lastUpdatedDate: string
+    laggingIndicatorSubjects: Record<string, unknown>
+    laggingIndicators2024: Array<Record<string, unknown>>
+    leadingIndicators: DWDistrictLeadingIndicator[]
+    leadingIndicatorsGreenCriteria: {
+      usage_per_school: number
+      stvUtilization: string
+      usage_in_minutes_per_day: number
+      teacherFeedback: number
+      childrenAboveAverage: string
+    }
+    stateData: Record<string, unknown>
+  }
+  message: string
+}
+
 

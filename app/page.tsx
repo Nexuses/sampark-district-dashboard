@@ -6,6 +6,7 @@ import { ClassObservationTable } from "@/components/class-observation-table"
 import { LaggingIndicatorsTable } from "@/components/lagging-indicators-table"
 import { LoginCard } from "@/components/login-card"
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { fetchDistrictWiseLeadingIndicators } from "@/lib/api"
 import type { DWDistrictWiseResponse } from "@/lib/types"
 import { getUser } from "@/lib/auth"
@@ -16,6 +17,7 @@ export default function Page() {
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState<string>("")
   const apiBase = useMemo(() => process.env.NEXT_PUBLIC_SAMPARK_API_URL?.trim() || "", [])
+  const router = useRouter()
 
   useEffect(() => {
     const ok = typeof window !== "undefined" && localStorage.getItem("ed_dash_logged_in") === "true"
@@ -73,11 +75,25 @@ export default function Page() {
                   items={insights.leadingIndicators as any}
                   criteria={insights.leadingIndicatorsGreenCriteria as any}
                   titleSuffix={insights.stateData?.name}
+                  onRowClick={(item) => {
+                    if (!item?.id) return
+                    const slug = encodeURIComponent((item.name || "").toLowerCase().replace(/\s+/g, "-"))
+                    router.push(`/district/${item.id}/${slug}`)
+                  }}
                 />
               ) : null}
             </div>
             <div id="section-2">
-              {insights ? <ClassObservationTable items={insights.leadingIndicators as any} /> : null}
+              {insights ? (
+                <ClassObservationTable
+                  items={insights.leadingIndicators as any}
+                  onRowClick={(item) => {
+                    if (!item?.id) return
+                    const slug = encodeURIComponent((item.name || "").toLowerCase().replace(/\s+/g, "-"))
+                    router.push(`/district/${item.id}/${slug}`)
+                  }}
+                />
+              ) : null}
             </div>
             <div id="section-3">
               {insights ? (
