@@ -124,6 +124,7 @@ export function LoginCard({ onSuccess }: { onSuccess: () => void }) {
     } finally {
       setIsSubmitting(false)
     }
+    
   }
 
   return (
