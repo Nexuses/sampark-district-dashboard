@@ -1,28 +1,28 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { Search, Filter, Info } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState, useMemo, useCallback } from "react"
+import { Info } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { TableToolbar } from "@/components/ui/table-toolbar"
+import { TablePagination } from "@/components/ui/table-pagination"
+import { SortableTableHeader } from "@/components/ui/sortable-table-header"
+import { TableEmptyState } from "@/components/ui/table-empty-state"
+import { useTable } from "@/hooks/use-table"
+import { exportToCSV } from "@/lib/table-utils"
 import type { DWDistrictWiseResponse } from "@/lib/types"
+
 type Props = {
   items: DWDistrictWiseResponse["data"]["leadingIndicators"]
   onRowClick?: (item: { id?: string; name: string }) => void
 }
 
-function getPerformanceColor(value: number, stateAverage: number): string {
-  if (value > stateAverage) {
-    return "bg-success/20 text-black border border-success/30"
-  } else if (value < stateAverage) {
-    return "bg-error/20 text-black border border-error/30"
-  }
-  return "bg-warning/20 text-black border border-warning/30"
-}
-
 export function ClassObservationTable({ items, onRowClick }: Props) {
   const [search, setSearch] = useState("")
   const [performanceFilter, setPerformanceFilter] = useState("all")
+  const [visibleColumns, setVisibleColumns] = useState({
+    childrenAssessed: true,
+    gradeAppropriate: true,
+  })
 
   const mapped = useMemo(() => {
     return (items || []).map((it: any) => {
@@ -59,6 +59,47 @@ export function ClassObservationTable({ items, onRowClick }: Props) {
     })
   }, [mapped, search, performanceFilter, stateAverage])
 
+  const {
+    paginatedData,
+    sortedData,
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    setPage,
+    setPageSize,
+    sortConfig,
+    handleSort,
+    resetPagination,
+  } = useTable({
+    data: filteredData,
+    initialPageSize: 25,
+    initialSort: null,
+  })
+
+  // Reset to first page when search or filter changes
+  useMemo(() => {
+    resetPagination()
+  }, [search, performanceFilter, resetPagination])
+
+  const handleExport = useCallback(() => {
+    const exportData = sortedData.map((row) => ({
+      District: row.district,
+      "Children Assessed": row.childrenAssessed.toLocaleString(),
+      "% of Grade Appropriate Learners": `${row.gradeAppropriate.toFixed(1)}%`,
+    }))
+    exportToCSV(exportData, `class-observation-${new Date().toISOString().split("T")[0]}`)
+  }, [sortedData])
+
+  const toggleColumnVisibility = useCallback((columnId: string, visible: boolean) => {
+    setVisibleColumns((prev) => ({ ...prev, [columnId]: visible }))
+  }, [])
+
+  const columns = [
+    { id: "childrenAssessed", label: "Children Assessed", visible: visibleColumns.childrenAssessed },
+    { id: "gradeAppropriate", label: "% of Grade Appropriate Learners", visible: visibleColumns.gradeAppropriate },
+  ]
+
   return (
     <section>
       <div className="flex items-center gap-3 mb-6">
@@ -70,82 +111,141 @@ export function ClassObservationTable({ items, onRowClick }: Props) {
       </div>
 
       <Card className="border-border bg-card p-4 md:p-6">
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search districts..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 bg-background border-border"
-            />
-          </div>
-          <Select value={performanceFilter} onValueChange={setPerformanceFilter}>
-            <SelectTrigger className="w-full md:w-[200px] bg-background border-border">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Filter by performance" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Performance</SelectItem>
-              <SelectItem value="high">High (≥50%)</SelectItem>
-              <SelectItem value="medium">Medium (40-49%)</SelectItem>
-              <SelectItem value="low">Low (&lt;40%)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <TableToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search districts..."
+          filters={[
+            {
+              id: "performance",
+              label: "Filter by performance",
+              value: performanceFilter,
+              options: [
+                { value: "all", label: "All Performance" },
+                { value: "high", label: "High (≥50%)" },
+                { value: "medium", label: "Medium (40-49%)" },
+                { value: "low", label: "Low (<40%)" },
+              ],
+              onChange: setPerformanceFilter,
+            },
+          ]}
+          columns={columns}
+          onColumnVisibilityChange={toggleColumnVisibility}
+          onExport={handleExport}
+          totalResults={mapped.length}
+          filteredResults={filteredData.length}
+        />
 
-        <div className="overflow-x-auto -mx-4 md:mx-0">
+        <div className="mt-6 overflow-x-auto -mx-4 md:mx-0">
           <div className="inline-block min-w-full align-middle">
             <table className="min-w-full divide-y divide-border">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider sticky left-0 bg-card z-10">
-                    District
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Children Assessed
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
-                    % of Grade Appropriate Learners
-                  </th>
+                  <SortableTableHeader
+                    label="District"
+                    sortKey="district"
+                    currentSortKey={sortConfig?.key}
+                    currentSortDirection={sortConfig?.direction}
+                    onSort={handleSort}
+                    align="left"
+                    className="sticky left-0 bg-card z-10"
+                  />
+                  {visibleColumns.childrenAssessed && (
+                    <SortableTableHeader
+                      label="Children Assessed"
+                      sortKey="childrenAssessed"
+                      currentSortKey={sortConfig?.key}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
+                  {visibleColumns.gradeAppropriate && (
+                    <SortableTableHeader
+                      label="% of Grade Appropriate Learners"
+                      sortKey="gradeAppropriate"
+                      currentSortKey={sortConfig?.key}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredData.map((row, idx) => (
-                  <tr
-                    key={idx}
-                    className={`hover:bg-primary/10 group transition-colors ${
-                      row.district === "State Average/Total" || row.district === "District Average/Total" ? "bg-primary/5 font-medium" : ""
-                    } ${onRowClick && row.district !== "State Average/Total" && row.district !== "District Average/Total" ? "cursor-pointer" : ""}`}
-                    onClick={() => {
-                      if (onRowClick && row.district !== "State Average/Total" && row.district !== "District Average/Total") onRowClick({ id: (row as any).id, name: row.district })
-                    }}
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-transparent transition-colors z-10 whitespace-nowrap">
-                      {row.district}
-                    </td>
-                    <td className="px-4 py-3 text-center text-sm text-foreground">
-                      {Number.isFinite(row.childrenAssessed) ? row.childrenAssessed.toLocaleString() : "NA"}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${
-                          row.district === "State Average/Total"
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : row.gradeAppropriate >= stateAverage
-                            ? "bg-success/20 text-black border border-success/30"
-                            : "bg-error/20 text-black border border-error/30"
-                        }`}
-                      >
-                        {Number.isFinite(row.gradeAppropriate) ? `${row.gradeAppropriate.toFixed(1)}%` : "NA"}
-                      </span>
+                {paginatedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="p-0">
+                      <TableEmptyState />
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  paginatedData.map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className={`hover:bg-primary/10 group transition-colors ${
+                        row.district === "State Average/Total" || row.district === "District Average/Total"
+                          ? "bg-primary/5 font-medium"
+                          : ""
+                      } ${
+                        onRowClick &&
+                        row.district !== "State Average/Total" &&
+                        row.district !== "District Average/Total"
+                          ? "cursor-pointer"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        if (
+                          onRowClick &&
+                          row.district !== "State Average/Total" &&
+                          row.district !== "District Average/Total"
+                        )
+                          onRowClick({ id: (row as any).id, name: row.district })
+                      }}
+                    >
+                      <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-transparent transition-colors z-10 whitespace-nowrap">
+                        {row.district}
+                      </td>
+                      {visibleColumns.childrenAssessed && (
+                        <td className="px-4 py-3 text-center text-sm text-foreground">
+                          {Number.isFinite(row.childrenAssessed) ? row.childrenAssessed.toLocaleString() : "NA"}
+                        </td>
+                      )}
+                      {visibleColumns.gradeAppropriate && (
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${
+                              row.district === "State Average/Total"
+                                ? "bg-primary/10 text-primary border border-primary/20"
+                                : row.gradeAppropriate >= stateAverage
+                                ? "bg-success/20 text-black border border-success/30"
+                                : "bg-error/20 text-black border border-error/30"
+                            }`}
+                          >
+                            {Number.isFinite(row.gradeAppropriate) ? `${row.gradeAppropriate.toFixed(1)}%` : "NA"}
+                          </span>
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
+
+        {paginatedData.length > 0 && (
+          <div className="mt-6">
+            <TablePagination
+              page={page}
+              pageSize={pageSize}
+              totalPages={totalPages}
+              totalItems={filteredData.length}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          </div>
+        )}
 
         <div className="mt-4 flex items-start gap-2 p-3 bg-muted/30 rounded-lg border border-border">
           <Info className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />

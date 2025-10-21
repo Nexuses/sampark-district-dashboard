@@ -1,11 +1,16 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { Search, Filter, Info } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState, useMemo, useCallback } from "react"
+import { Info } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { TableToolbar } from "@/components/ui/table-toolbar"
+import { TablePagination } from "@/components/ui/table-pagination"
+import { SortableTableHeader } from "@/components/ui/sortable-table-header"
+import { TableEmptyState } from "@/components/ui/table-empty-state"
+import { useTable } from "@/hooks/use-table"
+import { exportToCSV } from "@/lib/table-utils"
 import type { DWLeadingIndicator, DWDistrictWiseResponse } from "@/lib/types"
+
 type Props = {
   items: DWLeadingIndicator[]
   criteria: DWDistrictWiseResponse["data"]["leadingIndicatorsGreenCriteria"]
@@ -13,12 +18,18 @@ type Props = {
   onRowClick?: (item: { id?: string; name: string }) => void
 }
 
-// Rendering is neutral; we do not color by thresholds for API-driven values.
-
 export function LeadingIndicatorsTable({ items, criteria, titleSuffix, onRowClick }: Props) {
   const [search, setSearch] = useState("")
   const [performanceFilter, setPerformanceFilter] = useState("all")
-  
+  const [visibleColumns, setVisibleColumns] = useState({
+    teacherAcceptance: true,
+    lessonsTaught: true,
+    activeSchools: true,
+    dailyUsage: true,
+    teachersTrained: true,
+    smartSchools: true,
+  })
+
   const mapped = useMemo(() => {
     return (items || []).map((it) => {
       const valueOrEmpty = (v: unknown): string | number => {
@@ -39,13 +50,12 @@ export function LeadingIndicatorsTable({ items, criteria, titleSuffix, onRowClic
     })
   }, [items])
 
-  //
-
   const filteredData = useMemo(() => {
     return mapped.filter((row) => {
       const matchesSearch = row.district.toLowerCase().includes(search.toLowerCase())
       const numericDaily = Number(row.dailyUsage)
       const hasNumber = Number.isFinite(numericDaily)
+
       if (performanceFilter === "high") {
         return matchesSearch && hasNumber && numericDaily >= criteria.usage_in_minutes_per_day
       }
@@ -59,157 +69,307 @@ export function LeadingIndicatorsTable({ items, criteria, titleSuffix, onRowClic
     })
   }, [mapped, search, performanceFilter, criteria])
 
+  const {
+    paginatedData,
+    sortedData,
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    setPage,
+    setPageSize,
+    sortConfig,
+    handleSort,
+    resetPagination,
+  } = useTable({
+    data: filteredData,
+    initialPageSize: 25,
+    initialSort: null,
+  })
+
+  // Reset to first page when search or filter changes
+  useMemo(() => {
+    resetPagination()
+  }, [search, performanceFilter, resetPagination])
+
+  const handleExport = useCallback(() => {
+    const exportData = sortedData.map((row) => ({
+      District: row.district,
+      "Teacher Acceptance": row.teacherAcceptance === "" ? "NA" : row.teacherAcceptance,
+      "Lessons Taught/Month": row.lessonsTaught === "" ? "NA" : row.lessonsTaught,
+      "Active Schools %": row.activeSchools === "" ? "NA" : row.activeSchools,
+      "Daily Usage (min)": row.dailyUsage === "" ? "NA" : row.dailyUsage,
+      "# Teachers Trained": row.teachersTrained === "" ? "NA" : row.teachersTrained,
+      "# Smart Schools": row.smartSchools === "" ? "NA" : row.smartSchools,
+    }))
+    exportToCSV(exportData, `leading-indicators-${new Date().toISOString().split("T")[0]}`)
+  }, [sortedData])
+
+  const toggleColumnVisibility = useCallback((columnId: string, visible: boolean) => {
+    setVisibleColumns((prev) => ({ ...prev, [columnId]: visible }))
+  }, [])
+
+  const columns = [
+    { id: "teacherAcceptance", label: "Teacher Acceptance", visible: visibleColumns.teacherAcceptance },
+    { id: "lessonsTaught", label: "Lessons Taught/Month", visible: visibleColumns.lessonsTaught },
+    { id: "activeSchools", label: "Active Schools %", visible: visibleColumns.activeSchools },
+    { id: "dailyUsage", label: "Daily Usage (min)", visible: visibleColumns.dailyUsage },
+    { id: "teachersTrained", label: "# Teachers Trained", visible: visibleColumns.teachersTrained },
+    { id: "smartSchools", label: "# Smart Schools", visible: visibleColumns.smartSchools },
+  ]
+
+  const renderCell = (row: any, key: string, value: string | number) => {
+    const v = value
+    const n = Number(v)
+    const isNum = Number.isFinite(n)
+    let cls = ""
+
+    if (row.district === "State Average/Total" || row.district === "District Average/Total" || row.district === "Block Averages") {
+      cls = "bg-primary/10 text-primary border border-primary/20"
+    } else {
+      switch (key) {
+        case "teacherAcceptance":
+          cls = isNum
+            ? n >= criteria.teacherFeedback
+              ? "bg-success/20 text-black border border-success/30"
+              : "bg-warning/20 text-black border border-warning/30"
+            : "bg-muted/20 text-foreground border border-border"
+          break
+        case "lessonsTaught":
+          cls = isNum
+            ? n >= criteria.usage_per_school
+              ? "bg-success/20 text-black border border-success/30"
+              : "bg-warning/20 text-black border border-warning/30"
+            : "bg-muted/20 text-foreground border border-border"
+          break
+        case "activeSchools":
+          cls = isNum
+            ? n >= criteria.stvUtilization
+              ? "bg-success/20 text-black border border-success/30"
+              : "bg-warning/20 text-black border border-warning/30"
+            : "bg-muted/20 text-foreground border border-border"
+          break
+        case "dailyUsage":
+          cls = isNum
+            ? n >= criteria.usage_in_minutes_per_day
+              ? "bg-success/20 text-black border border-success/30"
+              : "bg-warning/20 text-black border border-warning/30"
+            : "bg-muted/20 text-foreground border border-border"
+          break
+        default:
+          cls = "bg-muted/20 text-foreground border border-border"
+      }
+    }
+
+    const displayValue = v === "" ? "NA" : typeof v === "number" && key === "teachersTrained" ? v.toLocaleString() : v
+
+    return (
+      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${cls}`}>
+        {displayValue}
+      </span>
+    )
+  }
+
   return (
     <section>
       <div className="flex items-center gap-3 mb-6">
         <div className="w-1 h-8 bg-primary rounded-full" />
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">Leading Indicators (2025-26){titleSuffix ? ` - ${titleSuffix}` : ""}</h2>
+          <h2 className="text-2xl font-semibold text-foreground">
+            Leading Indicators (2025-26){titleSuffix ? ` - ${titleSuffix}` : ""}
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">Average per school in the last 30 days</p>
         </div>
       </div>
 
       <Card className="border-border bg-card p-4 md:p-6">
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search districts..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 bg-background border-border"
-            />
-          </div>
-          <Select value={performanceFilter} onValueChange={setPerformanceFilter}>
-            <SelectTrigger className="w-full md:w-[200px] bg-background border-border">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Filter by performance" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Performance</SelectItem>
-              <SelectItem value="high">High (≥70%)</SelectItem>
-              <SelectItem value="medium">Medium (50-69%)</SelectItem>
-              <SelectItem value="low">Low (&lt;50%)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <TableToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search districts..."
+          filters={[
+            {
+              id: "performance",
+              label: "Filter by performance",
+              value: performanceFilter,
+              options: [
+                { value: "all", label: "All Performance" },
+                { value: "high", label: "High (≥70%)" },
+                { value: "medium", label: "Medium (50-69%)" },
+                { value: "low", label: "Low (<50%)" },
+              ],
+              onChange: setPerformanceFilter,
+            },
+          ]}
+          columns={columns}
+          onColumnVisibilityChange={toggleColumnVisibility}
+          onExport={handleExport}
+          totalResults={mapped.length}
+          filteredResults={filteredData.length}
+        />
 
-        <div className="overflow-x-auto -mx-4 md:mx-0">
+        <div className="mt-6 overflow-x-auto -mx-4 md:mx-0">
           <div className="inline-block min-w-full align-middle">
             <table className="min-w-full divide-y divide-border">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider sticky left-0 bg-card z-10">
-                    District
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Teacher Acceptance</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Lessons Taught/Month</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Active Schools %</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">Daily Usage (min)</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap"># Teachers Trained</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap"># Smart Schools</th>
+                  <SortableTableHeader
+                    label="District"
+                    sortKey="district"
+                    currentSortKey={sortConfig?.key}
+                    currentSortDirection={sortConfig?.direction}
+                    onSort={handleSort}
+                    align="left"
+                    className="sticky left-0 bg-card z-10"
+                  />
+                  {visibleColumns.teacherAcceptance && (
+                    <SortableTableHeader
+                      label="Teacher Acceptance"
+                      sortKey="teacherAcceptance"
+                      currentSortKey={sortConfig?.key}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
+                  {visibleColumns.lessonsTaught && (
+                    <SortableTableHeader
+                      label="Lessons Taught/Month"
+                      sortKey="lessonsTaught"
+                      currentSortKey={sortConfig?.key}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
+                  {visibleColumns.activeSchools && (
+                    <SortableTableHeader
+                      label="Active Schools %"
+                      sortKey="activeSchools"
+                      currentSortKey={sortConfig?.key}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
+                  {visibleColumns.dailyUsage && (
+                    <SortableTableHeader
+                      label="Daily Usage (min)"
+                      sortKey="dailyUsage"
+                      currentSortKey={sortConfig?.key}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
+                  {visibleColumns.teachersTrained && (
+                    <SortableTableHeader
+                      label="# Teachers Trained"
+                      sortKey="teachersTrained"
+                      currentSortKey={sortConfig?.key}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
+                  {visibleColumns.smartSchools && (
+                    <SortableTableHeader
+                      label="# Smart Schools"
+                      sortKey="smartSchools"
+                      currentSortKey={sortConfig?.key}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={handleSort}
+                      align="center"
+                    />
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredData.map((row, idx) => (
-                  <tr
-                    key={idx}
-                    className={`hover:bg-primary/10 group transition-colors ${
-                      onRowClick && row.district !== "State Average/Total" && row.district !== "District Average/Total" ? "cursor-pointer" : ""
-                    } ${
-                      row.district === "Block Averages" || row.district === "State Average/Total" || row.district === "District Average/Total"
-                        ? "bg-primary/5 font-medium"
-                        : ""
-                    }`}
-                    onClick={() => {
-                      if (onRowClick && row.district !== "State Average/Total" && row.district !== "District Average/Total") onRowClick({ id: (row as any).id, name: row.district })
-                    }}
-                  >
-                    <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-transparent transition-colors z-10 whitespace-nowrap">
-                      {row.district}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {(() => {
-                        const v = row.teacherAcceptance
-                        const n = Number(v)
-                        const isNum = Number.isFinite(n)
-                        const cls = row.district === "State Average/Total"
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : isNum
-                          ? (n >= criteria.teacherFeedback ? "bg-success/20 text-black border border-success/30" : "bg-warning/20 text-black border border-warning/30")
-                          : "bg-muted/20 text-foreground border border-border"
-                        return (
-                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${cls}`}>
-                            {v === "" ? "NA" : v}
-                          </span>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {(() => {
-                        const v = row.lessonsTaught
-                        const n = Number(v)
-                        const isNum = Number.isFinite(n)
-                        const cls = row.district === "State Average/Total"
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : isNum
-                          ? (n >= criteria.usage_per_school ? "bg-success/20 text-black border border-success/30" : "bg-warning/20 text-black border border-warning/30")
-                          : "bg-muted/20 text-foreground border border-border"
-                        return (
-                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${cls}`}>
-                            {v === "" ? "NA" : v}
-                          </span>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {(() => {
-                        const v = row.activeSchools
-                        const n = Number(v)
-                        const isNum = Number.isFinite(n)
-                        const cls = row.district === "State Average/Total"
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : isNum
-                          ? (n >= criteria.stvUtilization ? "bg-success/20 text-black border border-success/30" : "bg-warning/20 text-black border border-warning/30")
-                          : "bg-muted/20 text-foreground border border-border"
-                        return (
-                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${cls}`}>
-                            {v === "" ? "NA" : v}
-                          </span>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {(() => {
-                        const v = row.dailyUsage
-                        const n = Number(v)
-                        const isNum = Number.isFinite(n)
-                        const cls = row.district === "State Average/Total"
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : isNum
-                          ? (n >= criteria.usage_in_minutes_per_day ? "bg-success/20 text-black border border-success/30" : "bg-warning/20 text-black border border-warning/30")
-                          : "bg-muted/20 text-foreground border border-border"
-                        return (
-                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium ${cls}`}>
-                            {v === "" ? "NA" : v}
-                          </span>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium bg-muted/20 text-foreground border border-border">
-                        {row.teachersTrained === "" ? "NA" : (typeof row.teachersTrained === "number" ? row.teachersTrained.toLocaleString() : row.teachersTrained)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-md text-sm font-medium bg-muted/20 text-foreground border border-border">{row.smartSchools === "" ? "NA" : row.smartSchools}</span>
+                {paginatedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-0">
+                      <TableEmptyState />
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  paginatedData.map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className={`hover:bg-primary/10 group transition-colors ${
+                        onRowClick &&
+                        row.district !== "State Average/Total" &&
+                        row.district !== "District Average/Total"
+                          ? "cursor-pointer"
+                          : ""
+                      } ${
+                        row.district === "Block Averages" ||
+                        row.district === "State Average/Total" ||
+                        row.district === "District Average/Total"
+                          ? "bg-primary/5 font-medium"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        if (
+                          onRowClick &&
+                          row.district !== "State Average/Total" &&
+                          row.district !== "District Average/Total"
+                        )
+                          onRowClick({ id: (row as any).id, name: row.district })
+                      }}
+                    >
+                      <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-transparent transition-colors z-10 whitespace-nowrap">
+                        {row.district}
+                      </td>
+                      {visibleColumns.teacherAcceptance && (
+                        <td className="px-4 py-3 text-center">
+                          {renderCell(row, "teacherAcceptance", row.teacherAcceptance)}
+                        </td>
+                      )}
+                      {visibleColumns.lessonsTaught && (
+                        <td className="px-4 py-3 text-center">
+                          {renderCell(row, "lessonsTaught", row.lessonsTaught)}
+                        </td>
+                      )}
+                      {visibleColumns.activeSchools && (
+                        <td className="px-4 py-3 text-center">
+                          {renderCell(row, "activeSchools", row.activeSchools)}
+                        </td>
+                      )}
+                      {visibleColumns.dailyUsage && (
+                        <td className="px-4 py-3 text-center">
+                          {renderCell(row, "dailyUsage", row.dailyUsage)}
+                        </td>
+                      )}
+                      {visibleColumns.teachersTrained && (
+                        <td className="px-4 py-3 text-center">
+                          {renderCell(row, "teachersTrained", row.teachersTrained)}
+                        </td>
+                      )}
+                      {visibleColumns.smartSchools && (
+                        <td className="px-4 py-3 text-center">
+                          {renderCell(row, "smartSchools", row.smartSchools)}
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
+
+        {paginatedData.length > 0 && (
+          <div className="mt-6">
+            <TablePagination
+              page={page}
+              pageSize={pageSize}
+              totalPages={totalPages}
+              totalItems={filteredData.length}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          </div>
+        )}
 
         <div className="mt-4 flex items-start gap-2 p-3 bg-muted/30 rounded-lg border border-border">
           <Info className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
