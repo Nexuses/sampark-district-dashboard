@@ -138,8 +138,8 @@ export function LaggingIndicatorsTable({ items, subjects }: Props) {
 
   return (
     <section>
-      <div className="flex items-start gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 border border-warning/30 shadow-lg flex-shrink-0">
+      <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-warning/10 border border-warning/30 flex-shrink-0">
           <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-warning" />
         </div>
         <div className="flex-1 min-w-0">

@@ -32,9 +32,7 @@ export function DashboardHeader({ title, showBack }: { title?: string; showBack?
   }
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 border-b border-border/70 bg-gradient-to-r from-background/95 via-primary/5 to-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-lg">
-      {/* Animated gradient border */}
-      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent opacity-60 animate-pulse" />
+    <header className="fixed top-0 inset-x-0 z-50 border-b border-border bg-background backdrop-blur-xl supports-[backdrop-filter]:bg-background/95 shadow-sm">
 
       <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 max-w-[1600px]">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
@@ -44,7 +42,7 @@ export function DashboardHeader({ title, showBack }: { title?: string; showBack?
               <Button
                 variant="outline"
                 size="icon"
-                className="bg-background/50 hover:bg-primary/10 hover:border-primary/50 transition-all duration-300"
+                className="hover:bg-muted"
                 onClick={() => router.back()}
                 aria-label="Go back"
               >
@@ -52,13 +50,12 @@ export function DashboardHeader({ title, showBack }: { title?: string; showBack?
               </Button>
             ) : null}
             <div className="relative">
-              <div className="absolute inset-0 bg-primary/10 blur-xl rounded-full animate-pulse" />
               <Image
                 src="/logo.png"
                 alt="AI Sampark"
                 width={160}
                 height={53}
-                className="h-8 sm:h-12 md:h-14 w-auto relative z-10 transition-transform duration-300 hover:scale-105"
+                className="h-8 sm:h-12 md:h-14 w-auto"
                 priority
               />
             </div>
@@ -70,7 +67,7 @@ export function DashboardHeader({ title, showBack }: { title?: string; showBack?
               <div className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 border border-primary/20">
                 <TrendingUp className="w-4 h-4 text-primary" />
               </div>
-              <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground leading-tight bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent animate-gradient">
+              <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-foreground leading-tight">
                 {title || "Chattisgarh"}
               </h1>
             </div>
@@ -84,7 +81,7 @@ export function DashboardHeader({ title, showBack }: { title?: string; showBack?
             <Button
               variant="outline"
               size="icon"
-              className="sm:h-9 sm:w-auto sm:px-3 sm:py-2 sm:rounded-lg gap-2 bg-background/50 hover:bg-primary/10 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/20"
+              className="sm:h-9 sm:w-auto sm:px-3 sm:py-2 sm:rounded-lg gap-2 hover:bg-muted"
               onClick={handleDownloadPDF}
               aria-label="Download PDF"
             >
@@ -94,7 +91,7 @@ export function DashboardHeader({ title, showBack }: { title?: string; showBack?
             <Button
               variant="outline"
               size="icon"
-              className="sm:h-9 sm:w-auto sm:px-3 sm:py-2 sm:rounded-lg gap-2 bg-background/50 hover:bg-destructive/10 hover:border-destructive/50 transition-all duration-300 hover:shadow-lg hover:shadow-destructive/20"
+              className="sm:h-9 sm:w-auto sm:px-3 sm:py-2 sm:rounded-lg gap-2 hover:bg-muted"
               onClick={handleLogout}
               aria-label="Logout"
             >
