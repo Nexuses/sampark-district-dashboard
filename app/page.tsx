@@ -5,6 +5,10 @@ import { LeadingIndicatorsTable } from "@/components/leading-indicators-table"
 import { ClassObservationTable } from "@/components/class-observation-table"
 import { LaggingIndicatorsTable } from "@/components/lagging-indicators-table"
 import { LoginCard } from "@/components/login-card"
+import { StatisticsCards } from "@/components/statistics-cards"
+import { PerformanceChart } from "@/components/performance-chart"
+import { Card } from "@/components/ui/card"
+import { Info, TrendingUp, TrendingDown, Target } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { fetchDistrictWiseLeadingIndicators } from "@/lib/api"
@@ -51,6 +55,69 @@ export default function Page() {
     run()
   }, [isAuthed, apiBase])
 
+  // Calculate statistics from insights data
+  const statistics = useMemo(() => {
+    if (!insights?.leadingIndicators) {
+      return {
+        totalDistricts: 0,
+        averageTeacherAcceptance: 0,
+        averageDailyUsage: 0,
+        totalTeachersTrained: 0,
+        totalSmartSchools: 0,
+        activeSchoolsPercentage: 0,
+      }
+    }
+
+    const indicators = insights.leadingIndicators.filter((item: any) => item.name !== "State Average/Total")
+    const totalDistricts = indicators.length
+
+    const sumTeacherAcceptance = indicators.reduce((sum: number, item: any) => {
+      const rating = Number(item.teacherFeedback?.rating)
+      return sum + (Number.isFinite(rating) ? rating : 0)
+    }, 0)
+
+    const sumDailyUsage = indicators.reduce((sum: number, item: any) => {
+      const usage = Number(item.usage_in_minutes_per_day)
+      return sum + (Number.isFinite(usage) ? usage : 0)
+    }, 0)
+
+    const totalTeachersTrained = indicators.reduce((sum: number, item: any) => {
+      const trained = Number(item.trainedTeachers)
+      return sum + (Number.isFinite(trained) ? trained : 0)
+    }, 0)
+
+    const totalSmartSchools = indicators.reduce((sum: number, item: any) => {
+      const schools = Number(item.smartSchools)
+      return sum + (Number.isFinite(schools) ? schools : 0)
+    }, 0)
+
+    const sumActiveSchools = indicators.reduce((sum: number, item: any) => {
+      const active = Number((item as any)?.stvUtilization)
+      return sum + (Number.isFinite(active) ? active : 0)
+    }, 0)
+
+    return {
+      totalDistricts,
+      averageTeacherAcceptance: totalDistricts > 0 ? sumTeacherAcceptance / totalDistricts : 0,
+      averageDailyUsage: totalDistricts > 0 ? sumDailyUsage / totalDistricts : 0,
+      totalTeachersTrained,
+      totalSmartSchools,
+      activeSchoolsPercentage: totalDistricts > 0 ? sumActiveSchools / totalDistricts : 0,
+    }
+  }, [insights])
+
+  // Prepare chart data
+  const chartData = useMemo(() => {
+    if (!insights?.leadingIndicators) return []
+
+    return insights.leadingIndicators.map((item: any) => ({
+      district: item.name || "",
+      teacherAcceptance: Number(item.teacherFeedback?.rating) || 0,
+      dailyUsage: Number(item.usage_in_minutes_per_day) || 0,
+      activeSchools: Number((item as any)?.stvUtilization) || 0,
+    }))
+  }, [insights])
+
   return (
     <div className="min-h-screen bg-background">
       {isAuthed ? (
@@ -65,60 +132,94 @@ export default function Page() {
           </div>
         ) : (
           <>
-            <div id="section-1">
-              {loadError ? (
-                <div className="text-sm text-error">{loadError}</div>
-              ) : loading ? (
-                <div className="text-sm text-muted-foreground">Loading dashboard…</div>
-              ) : insights ? (
-                <LeadingIndicatorsTable
-                  items={insights.leadingIndicators as any}
-                  criteria={insights.leadingIndicatorsGreenCriteria as any}
-                  titleSuffix={insights.stateData?.name}
-                  onRowClick={(item) => {
-                    if (!item?.id) return
-                    const slug = encodeURIComponent((item.name || "").toLowerCase().replace(/\s+/g, "-"))
-                    router.push(`/district/${item.id}/${slug}`)
-                  }}
-                />
-              ) : null}
-            </div>
-            <div id="section-2">
-              {insights ? (
-                <ClassObservationTable
-                  items={insights.leadingIndicators as any}
-                  onRowClick={(item) => {
-                    if (!item?.id) return
-                    const slug = encodeURIComponent((item.name || "").toLowerCase().replace(/\s+/g, "-"))
-                    router.push(`/district/${item.id}/${slug}`)
-                  }}
-                />
-              ) : null}
-            </div>
-            <div id="section-3">
-              {insights ? (
-                <LaggingIndicatorsTable items={insights.laggingIndicators2024 as any} subjects={insights.laggingIndicatorSubjects as any} />
-              ) : null}
-            </div>
+            {loadError ? (
+              <div className="text-sm text-error">{loadError}</div>
+            ) : loading ? (
+              <div className="text-sm text-muted-foreground">Loading dashboard…</div>
+            ) : insights ? (
+              <>
+                {/* Statistics Cards */}
+                <StatisticsCards data={statistics} />
+
+                {/* Performance Chart */}
+                <PerformanceChart data={chartData} maxItems={10} />
+
+                {/* Leading Indicators Table */}
+                <div id="section-1">
+                  <LeadingIndicatorsTable
+                    items={insights.leadingIndicators as any}
+                    criteria={insights.leadingIndicatorsGreenCriteria as any}
+                    titleSuffix={insights.stateData?.name}
+                    onRowClick={(item) => {
+                      if (!item?.id) return
+                      const slug = encodeURIComponent((item.name || "").toLowerCase().replace(/\s+/g, "-"))
+                      router.push(`/district/${item.id}/${slug}`)
+                    }}
+                  />
+                </div>
+              </>
+            ) : null}
+
+            {insights ? (
+              <>
+                {/* Class Observation Table */}
+                <div id="section-2">
+                  <ClassObservationTable
+                    items={insights.leadingIndicators as any}
+                    onRowClick={(item) => {
+                      if (!item?.id) return
+                      const slug = encodeURIComponent((item.name || "").toLowerCase().replace(/\s+/g, "-"))
+                      router.push(`/district/${item.id}/${slug}`)
+                    }}
+                  />
+                </div>
+
+                {/* Lagging Indicators Table */}
+                <div id="section-3">
+                  <LaggingIndicatorsTable
+                    items={insights.laggingIndicators2024 as any}
+                    subjects={insights.laggingIndicatorSubjects as any}
+                  />
+                </div>
+              </>
+            ) : null}
 
             <section className="border-t border-border pt-8 pb-4">
-              <div className="max-w-7xl">
-                <h3 className="text-base font-semibold text-foreground mb-4">Performance Indicators</h3>
-                <div className="flex flex-wrap items-center gap-6 text-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded bg-success/20 border border-success/30" />
-                    <span className="text-foreground">Above District Average</span>
+              <Card className="border-border bg-gradient-to-br from-card to-muted/20 p-6">
+                <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+                  <Info className="w-5 h-5 text-primary" />
+                  Performance Indicators Guide
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border hover:border-success/50 transition-all">
+                    <div className="w-8 h-8 rounded-lg bg-success/20 border border-success/30 flex items-center justify-center flex-shrink-0">
+                      <TrendingUp className="w-4 h-4 text-success" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-semibold text-foreground">Above Average</span>
+                      <p className="text-xs text-muted-foreground">High performing districts</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded bg-error/20 border border-error/30" />
-                    <span className="text-foreground">Below District Average</span>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border hover:border-error/50 transition-all">
+                    <div className="w-8 h-8 rounded-lg bg-error/20 border border-error/30 flex items-center justify-center flex-shrink-0">
+                      <TrendingDown className="w-4 h-4 text-error" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-semibold text-foreground">Below Average</span>
+                      <p className="text-xs text-muted-foreground">Needs improvement</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded bg-primary/10 border border-primary/20" />
-                    <span className="text-foreground">State Average/Total</span>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border hover:border-primary/50 transition-all">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                      <Target className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <span className="text-sm font-semibold text-foreground">State Average/Total</span>
+                      <p className="text-xs text-muted-foreground">Benchmark value</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Card>
             </section>
           </>
         )}

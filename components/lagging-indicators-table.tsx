@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react"
 import { Card } from "@/components/ui/card"
+import { BookCheck, GraduationCap } from "lucide-react"
 import { TableToolbar } from "@/components/ui/table-toolbar"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { SortableTableHeader } from "@/components/ui/sortable-table-header"
@@ -137,11 +138,18 @@ export function LaggingIndicatorsTable({ items, subjects }: Props) {
 
   return (
     <section>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-1 h-8 bg-primary rounded-full" />
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">Lagging Indicators (2024-25)</h2>
-          <p className="text-sm text-muted-foreground mt-1">% of Children achieving Base-level/End-level Competence</p>
+      <div className="flex items-start gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 border border-warning/30 shadow-lg flex-shrink-0">
+          <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-warning" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">
+            Lagging Indicators (2024-25)
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 flex items-center gap-2">
+            <BookCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline" />
+            % of Children achieving Base-level/End-level Competence
+          </p>
         </div>
       </div>
 

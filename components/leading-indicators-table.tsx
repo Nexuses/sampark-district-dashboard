@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
-import { Info } from "lucide-react"
+import { Info, TrendingUp, BarChart3, ChevronRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { TableToolbar } from "@/components/ui/table-toolbar"
 import { TablePagination } from "@/components/ui/table-pagination"
@@ -9,6 +9,7 @@ import { SortableTableHeader } from "@/components/ui/sortable-table-header"
 import { TableEmptyState } from "@/components/ui/table-empty-state"
 import { useTable } from "@/hooks/use-table"
 import { exportToCSV } from "@/lib/table-utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 import type { DWLeadingIndicator, DWDistrictWiseResponse } from "@/lib/types"
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
 }
 
 export function LeadingIndicatorsTable({ items, criteria, titleSuffix, onRowClick }: Props) {
+  const isMobile = useIsMobile()
   const [search, setSearch] = useState("")
   const [performanceFilter, setPerformanceFilter] = useState("all")
   const [visibleColumns, setVisibleColumns] = useState({
@@ -170,15 +172,87 @@ export function LeadingIndicatorsTable({ items, criteria, titleSuffix, onRowClic
     )
   }
 
+  // Mobile Card View Component
+  const MobileCard = ({ row }: { row: any }) => {
+    const isClickable =
+      onRowClick &&
+      row.district !== "State Average/Total" &&
+      row.district !== "District Average/Total"
+
+    return (
+      <Card
+        className={`p-4 border-border bg-card hover:shadow-md transition-all duration-200 ${
+          row.district === "State Average/Total" ||
+          row.district === "District Average/Total" ||
+          row.district === "Block Averages"
+            ? "bg-primary/5 border-primary/30"
+            : ""
+        } ${isClickable ? "cursor-pointer hover:border-primary/50" : ""}`}
+        onClick={() => {
+          if (isClickable) onRowClick({ id: (row as any).id, name: row.district })
+        }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-base text-foreground">{row.district}</h3>
+          {isClickable && <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {visibleColumns.teacherAcceptance && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Teacher Acceptance</p>
+              {renderCell(row, "teacherAcceptance", row.teacherAcceptance)}
+            </div>
+          )}
+          {visibleColumns.lessonsTaught && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Lessons/Month</p>
+              {renderCell(row, "lessonsTaught", row.lessonsTaught)}
+            </div>
+          )}
+          {visibleColumns.activeSchools && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Active Schools %</p>
+              {renderCell(row, "activeSchools", row.activeSchools)}
+            </div>
+          )}
+          {visibleColumns.dailyUsage && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Daily Usage</p>
+              {renderCell(row, "dailyUsage", row.dailyUsage)}
+            </div>
+          )}
+          {visibleColumns.teachersTrained && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Teachers Trained</p>
+              {renderCell(row, "teachersTrained", row.teachersTrained)}
+            </div>
+          )}
+          {visibleColumns.smartSchools && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Smart Schools</p>
+              {renderCell(row, "smartSchools", row.smartSchools)}
+            </div>
+          )}
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <section>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-1 h-8 bg-primary rounded-full" />
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">
+      <div className="flex items-start gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 shadow-lg flex-shrink-0">
+          <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">
             Leading Indicators (2025-26){titleSuffix ? ` - ${titleSuffix}` : ""}
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">Average per school in the last 30 days</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 flex items-center gap-2">
+            <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline" />
+            Average per school in the last 30 days
+          </p>
         </div>
       </div>
 
@@ -208,155 +282,167 @@ export function LeadingIndicatorsTable({ items, criteria, titleSuffix, onRowClic
           filteredResults={filteredData.length}
         />
 
-        <div className="mt-6 overflow-x-auto -mx-4 md:mx-0">
-          <div className="inline-block min-w-full align-middle">
-            <table className="min-w-full divide-y divide-border">
-              <thead>
-                <tr className="border-b border-border">
-                  <SortableTableHeader
-                    label="District"
-                    sortKey="district"
-                    currentSortKey={sortConfig?.key}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={handleSort}
-                    align="left"
-                    className="sticky left-0 bg-card z-10"
-                  />
-                  {visibleColumns.teacherAcceptance && (
+        {/* Mobile Card View */}
+        {isMobile ? (
+          <div className="mt-6 space-y-3">
+            {paginatedData.length === 0 ? (
+              <TableEmptyState />
+            ) : (
+              paginatedData.map((row, idx) => <MobileCard key={idx} row={row} />)
+            )}
+          </div>
+        ) : (
+          /* Desktop Table View */
+          <div className="mt-6 overflow-x-auto -mx-4 md:mx-0">
+            <div className="inline-block min-w-full align-middle">
+              <table className="min-w-full divide-y divide-border">
+                <thead>
+                  <tr className="border-b border-border">
                     <SortableTableHeader
-                      label="Teacher Acceptance"
-                      sortKey="teacherAcceptance"
+                      label="District"
+                      sortKey="district"
                       currentSortKey={sortConfig?.key}
                       currentSortDirection={sortConfig?.direction}
                       onSort={handleSort}
-                      align="center"
+                      align="left"
+                      className="sticky left-0 bg-card z-10"
                     />
-                  )}
-                  {visibleColumns.lessonsTaught && (
-                    <SortableTableHeader
-                      label="Lessons Taught/Month"
-                      sortKey="lessonsTaught"
-                      currentSortKey={sortConfig?.key}
-                      currentSortDirection={sortConfig?.direction}
-                      onSort={handleSort}
-                      align="center"
-                    />
-                  )}
-                  {visibleColumns.activeSchools && (
-                    <SortableTableHeader
-                      label="Active Schools %"
-                      sortKey="activeSchools"
-                      currentSortKey={sortConfig?.key}
-                      currentSortDirection={sortConfig?.direction}
-                      onSort={handleSort}
-                      align="center"
-                    />
-                  )}
-                  {visibleColumns.dailyUsage && (
-                    <SortableTableHeader
-                      label="Daily Usage (min)"
-                      sortKey="dailyUsage"
-                      currentSortKey={sortConfig?.key}
-                      currentSortDirection={sortConfig?.direction}
-                      onSort={handleSort}
-                      align="center"
-                    />
-                  )}
-                  {visibleColumns.teachersTrained && (
-                    <SortableTableHeader
-                      label="# Teachers Trained"
-                      sortKey="teachersTrained"
-                      currentSortKey={sortConfig?.key}
-                      currentSortDirection={sortConfig?.direction}
-                      onSort={handleSort}
-                      align="center"
-                    />
-                  )}
-                  {visibleColumns.smartSchools && (
-                    <SortableTableHeader
-                      label="# Smart Schools"
-                      sortKey="smartSchools"
-                      currentSortKey={sortConfig?.key}
-                      currentSortDirection={sortConfig?.direction}
-                      onSort={handleSort}
-                      align="center"
-                    />
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {paginatedData.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="p-0">
-                      <TableEmptyState />
-                    </td>
+                    {visibleColumns.teacherAcceptance && (
+                      <SortableTableHeader
+                        label="Teacher Acceptance"
+                        sortKey="teacherAcceptance"
+                        currentSortKey={sortConfig?.key}
+                        currentSortDirection={sortConfig?.direction}
+                        onSort={handleSort}
+                        align="center"
+                      />
+                    )}
+                    {visibleColumns.lessonsTaught && (
+                      <SortableTableHeader
+                        label="Lessons Taught/Month"
+                        sortKey="lessonsTaught"
+                        currentSortKey={sortConfig?.key}
+                        currentSortDirection={sortConfig?.direction}
+                        onSort={handleSort}
+                        align="center"
+                      />
+                    )}
+                    {visibleColumns.activeSchools && (
+                      <SortableTableHeader
+                        label="Active Schools %"
+                        sortKey="activeSchools"
+                        currentSortKey={sortConfig?.key}
+                        currentSortDirection={sortConfig?.direction}
+                        onSort={handleSort}
+                        align="center"
+                      />
+                    )}
+                    {visibleColumns.dailyUsage && (
+                      <SortableTableHeader
+                        label="Daily Usage (min)"
+                        sortKey="dailyUsage"
+                        currentSortKey={sortConfig?.key}
+                        currentSortDirection={sortConfig?.direction}
+                        onSort={handleSort}
+                        align="center"
+                      />
+                    )}
+                    {visibleColumns.teachersTrained && (
+                      <SortableTableHeader
+                        label="# Teachers Trained"
+                        sortKey="teachersTrained"
+                        currentSortKey={sortConfig?.key}
+                        currentSortDirection={sortConfig?.direction}
+                        onSort={handleSort}
+                        align="center"
+                      />
+                    )}
+                    {visibleColumns.smartSchools && (
+                      <SortableTableHeader
+                        label="# Smart Schools"
+                        sortKey="smartSchools"
+                        currentSortKey={sortConfig?.key}
+                        currentSortDirection={sortConfig?.direction}
+                        onSort={handleSort}
+                        align="center"
+                      />
+                    )}
                   </tr>
-                ) : (
-                  paginatedData.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className={`hover:bg-primary/10 group transition-colors ${
-                        onRowClick &&
-                        row.district !== "State Average/Total" &&
-                        row.district !== "District Average/Total"
-                          ? "cursor-pointer"
-                          : ""
-                      } ${
-                        row.district === "Block Averages" ||
-                        row.district === "State Average/Total" ||
-                        row.district === "District Average/Total"
-                          ? "bg-primary/5 font-medium"
-                          : ""
-                      }`}
-                      onClick={() => {
-                        if (
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginatedData.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-0">
+                        <TableEmptyState />
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedData.map((row, idx) => (
+                      <tr
+                        key={idx}
+                        className={`hover:bg-primary/10 group transition-colors ${
                           onRowClick &&
                           row.district !== "State Average/Total" &&
                           row.district !== "District Average/Total"
-                        )
-                          onRowClick({ id: (row as any).id, name: row.district })
-                      }}
-                    >
-                      <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-transparent transition-colors z-10 whitespace-nowrap">
-                        {row.district}
-                      </td>
-                      {visibleColumns.teacherAcceptance && (
-                        <td className="px-4 py-3 text-center">
-                          {renderCell(row, "teacherAcceptance", row.teacherAcceptance)}
+                            ? "cursor-pointer"
+                            : ""
+                        } ${
+                          row.district === "Block Averages" ||
+                          row.district === "State Average/Total" ||
+                          row.district === "District Average/Total"
+                            ? "bg-primary/5 font-medium"
+                            : ""
+                        }`}
+                        onClick={() => {
+                          if (
+                            onRowClick &&
+                            row.district !== "State Average/Total" &&
+                            row.district !== "District Average/Total"
+                          )
+                            onRowClick({ id: (row as any).id, name: row.district })
+                        }}
+                      >
+                        <td className="px-4 py-3 text-sm font-medium text-foreground sticky left-0 bg-transparent transition-colors z-10 whitespace-nowrap">
+                          {row.district}
                         </td>
-                      )}
-                      {visibleColumns.lessonsTaught && (
-                        <td className="px-4 py-3 text-center">
-                          {renderCell(row, "lessonsTaught", row.lessonsTaught)}
-                        </td>
-                      )}
-                      {visibleColumns.activeSchools && (
-                        <td className="px-4 py-3 text-center">
-                          {renderCell(row, "activeSchools", row.activeSchools)}
-                        </td>
-                      )}
-                      {visibleColumns.dailyUsage && (
-                        <td className="px-4 py-3 text-center">
-                          {renderCell(row, "dailyUsage", row.dailyUsage)}
-                        </td>
-                      )}
-                      {visibleColumns.teachersTrained && (
-                        <td className="px-4 py-3 text-center">
-                          {renderCell(row, "teachersTrained", row.teachersTrained)}
-                        </td>
-                      )}
-                      {visibleColumns.smartSchools && (
-                        <td className="px-4 py-3 text-center">
-                          {renderCell(row, "smartSchools", row.smartSchools)}
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                        {visibleColumns.teacherAcceptance && (
+                          <td className="px-4 py-3 text-center">
+                            {renderCell(row, "teacherAcceptance", row.teacherAcceptance)}
+                          </td>
+                        )}
+                        {visibleColumns.lessonsTaught && (
+                          <td className="px-4 py-3 text-center">
+                            {renderCell(row, "lessonsTaught", row.lessonsTaught)}
+                          </td>
+                        )}
+                        {visibleColumns.activeSchools && (
+                          <td className="px-4 py-3 text-center">
+                            {renderCell(row, "activeSchools", row.activeSchools)}
+                          </td>
+                        )}
+                        {visibleColumns.dailyUsage && (
+                          <td className="px-4 py-3 text-center">
+                            {renderCell(row, "dailyUsage", row.dailyUsage)}
+                          </td>
+                        )}
+                        {visibleColumns.teachersTrained && (
+                          <td className="px-4 py-3 text-center">
+                            {renderCell(row, "teachersTrained", row.teachersTrained)}
+                          </td>
+                        )}
+                        {visibleColumns.smartSchools && (
+                          <td className="px-4 py-3 text-center">
+                            {renderCell(row, "smartSchools", row.smartSchools)}
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
         {paginatedData.length > 0 && (
           <div className="mt-6">

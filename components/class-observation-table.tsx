@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
-import { Info } from "lucide-react"
+import { Info, Eye, Users } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { TableToolbar } from "@/components/ui/table-toolbar"
 import { TablePagination } from "@/components/ui/table-pagination"
@@ -102,11 +102,18 @@ export function ClassObservationTable({ items, onRowClick }: Props) {
 
   return (
     <section>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-1 h-8 bg-primary rounded-full" />
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">Class Observation (2025-26)</h2>
-          <p className="text-sm text-muted-foreground mt-1">% of grade appropriate learners</p>
+      <div className="flex items-start gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-success/20 to-success/5 border border-success/30 shadow-lg flex-shrink-0">
+          <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-success" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground leading-tight">
+            Class Observation (2025-26)
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 flex items-center gap-2">
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline" />
+            % of grade appropriate learners
+          </p>
         </div>
       </div>
 
