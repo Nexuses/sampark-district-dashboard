@@ -241,8 +241,8 @@ export function LeadingIndicatorsTable({ items, criteria, titleSuffix, onRowClic
 
   return (
     <section>
-      <div className="flex items-start gap-3 sm:gap-4 mb-6 sm:mb-8">
-        <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 shadow-lg flex-shrink-0">
+      <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 border border-primary/30 flex-shrink-0">
           <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
         </div>
         <div className="flex-1 min-w-0">

@@ -5,8 +5,6 @@ import { LeadingIndicatorsTable } from "@/components/leading-indicators-table"
 import { ClassObservationTable } from "@/components/class-observation-table"
 import { LaggingIndicatorsTable } from "@/components/lagging-indicators-table"
 import { LoginCard } from "@/components/login-card"
-import { StatisticsCards } from "@/components/statistics-cards"
-import { PerformanceChart } from "@/components/performance-chart"
 import { Card } from "@/components/ui/card"
 import { Info, TrendingUp, TrendingDown, Target } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
@@ -55,69 +53,6 @@ export default function Page() {
     run()
   }, [isAuthed, apiBase])
 
-  // Calculate statistics from insights data
-  const statistics = useMemo(() => {
-    if (!insights?.leadingIndicators) {
-      return {
-        totalDistricts: 0,
-        averageTeacherAcceptance: 0,
-        averageDailyUsage: 0,
-        totalTeachersTrained: 0,
-        totalSmartSchools: 0,
-        activeSchoolsPercentage: 0,
-      }
-    }
-
-    const indicators = insights.leadingIndicators.filter((item: any) => item.name !== "State Average/Total")
-    const totalDistricts = indicators.length
-
-    const sumTeacherAcceptance = indicators.reduce((sum: number, item: any) => {
-      const rating = Number(item.teacherFeedback?.rating)
-      return sum + (Number.isFinite(rating) ? rating : 0)
-    }, 0)
-
-    const sumDailyUsage = indicators.reduce((sum: number, item: any) => {
-      const usage = Number(item.usage_in_minutes_per_day)
-      return sum + (Number.isFinite(usage) ? usage : 0)
-    }, 0)
-
-    const totalTeachersTrained = indicators.reduce((sum: number, item: any) => {
-      const trained = Number(item.trainedTeachers)
-      return sum + (Number.isFinite(trained) ? trained : 0)
-    }, 0)
-
-    const totalSmartSchools = indicators.reduce((sum: number, item: any) => {
-      const schools = Number(item.smartSchools)
-      return sum + (Number.isFinite(schools) ? schools : 0)
-    }, 0)
-
-    const sumActiveSchools = indicators.reduce((sum: number, item: any) => {
-      const active = Number((item as any)?.stvUtilization)
-      return sum + (Number.isFinite(active) ? active : 0)
-    }, 0)
-
-    return {
-      totalDistricts,
-      averageTeacherAcceptance: totalDistricts > 0 ? sumTeacherAcceptance / totalDistricts : 0,
-      averageDailyUsage: totalDistricts > 0 ? sumDailyUsage / totalDistricts : 0,
-      totalTeachersTrained,
-      totalSmartSchools,
-      activeSchoolsPercentage: totalDistricts > 0 ? sumActiveSchools / totalDistricts : 0,
-    }
-  }, [insights])
-
-  // Prepare chart data
-  const chartData = useMemo(() => {
-    if (!insights?.leadingIndicators) return []
-
-    return insights.leadingIndicators.map((item: any) => ({
-      district: item.name || "",
-      teacherAcceptance: Number(item.teacherFeedback?.rating) || 0,
-      dailyUsage: Number(item.usage_in_minutes_per_day) || 0,
-      activeSchools: Number((item as any)?.stvUtilization) || 0,
-    }))
-  }, [insights])
-
   return (
     <div className="min-h-screen bg-background">
       {isAuthed ? (
@@ -125,7 +60,7 @@ export default function Page() {
           <DashboardHeader title={insights?.stateData?.name} />
         </div>
       ) : null}
-      <main className={`container mx-auto px-4 ${isAuthed ? "pt-28" : "pt-16"} pb-8 space-y-12 max-w-[1600px]`}>
+      <main className={`container mx-auto px-4 ${isAuthed ? "pt-28" : "pt-16"} pb-8 space-y-6 max-w-[1600px]`}>
         {!isAuthed ? (
           <div className="min-h-[70vh] flex items-center justify-center">
             <LoginCard onSuccess={() => setIsAuthed(true)} />
@@ -138,12 +73,6 @@ export default function Page() {
               <div className="text-sm text-muted-foreground">Loading dashboard…</div>
             ) : insights ? (
               <>
-                {/* Statistics Cards */}
-                <StatisticsCards data={statistics} />
-
-                {/* Performance Chart */}
-                <PerformanceChart data={chartData} maxItems={10} />
-
                 {/* Leading Indicators Table */}
                 <div id="section-1">
                   <LeadingIndicatorsTable
@@ -185,7 +114,7 @@ export default function Page() {
             ) : null}
 
             <section className="border-t border-border pt-8 pb-4">
-              <Card className="border-border bg-gradient-to-br from-card to-muted/20 p-6">
+              <Card className="border-border bg-card p-6">
                 <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
                   <Info className="w-5 h-5 text-primary" />
                   Performance Indicators Guide
